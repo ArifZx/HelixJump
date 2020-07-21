@@ -1,13 +1,20 @@
+'use strict'
+
 var Game = Game || {};
 
+let width, height;
+
 Game.init = function () {
+
+    height = window.innerHeight;
+    width = window.innerWidth;
 
     this.resetGravity();
 
     this.scoreBoard = document.getElementById("scoreBoard");
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(90, 375 / 667, 0.1, 1000);
+    this.camera = new THREE.PerspectiveCamera(90, width / height, 0.1, 1000);
 
     this.addLights();
 
@@ -15,17 +22,115 @@ Game.init = function () {
     this.camera.lookAt(new THREE.Vector3(0, -this.player.height, 0));
 
     this.renderer = new THREE.WebGLRenderer({antialias: true});
-    this.renderer.setPixelRatio(window.devicePixelRatio);
-    this.renderer.setSize(375, 667);
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.BasicShadowMap;
-
+    // this.renderer.setPixelRatio(window.devicePixelRatio);
+    // const isPotrait = window.innerHeight > window.innerWidth;   
+    this.renderer.setSize(width, height);
+    this.renderer.shadowMap.enabled = this.USE_SHADOW;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.domElement.id = 'game';
     document.body.appendChild(this.renderer.domElement);
 
     this.addLoader();
+    this.initTouchControl();
     this.loadResources();
     update();
 };
+
+const touches = new Array(5);
+Game.initTouchControl = function () {
+    const canvas = this.renderer?.domElement;
+    if(!canvas) {
+        return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+
+    function transformPoint(obj) {
+        const x = obj.clientX - rect.left; 
+        const y = obj.clientY - rect.top;
+        const isOver = (x >= 0 && x <= rect.width) &&
+                        (y >= 0 && y <= rect.height);
+
+        return {
+            ...obj,
+            x, 
+            y,
+            isOver
+        }
+    }
+
+    function setDeactiveTouch() {
+        let i = touches.length;
+        while(i--) {
+            if(touches[i]) {
+                touches[i].isActive = false;
+            }
+        }
+    }
+
+    function handleTouchEvent(e, isActive) {
+        let i = e?.touches?.length || 0;
+
+        while(i--) {
+            const touch = e.touches[i];
+            touches[i] = {
+                ...touches[i],
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+            }
+
+            touches[i] = transformPoint(touches[i]);
+
+            const active = isActive !== undefined ? isActive : touches[i].isActive || false
+
+            if(touches[i].isActive !== undefined) {
+                touches[i].isActive = active;
+            } else {
+                touches[i] = {
+                    ...touches[i],
+                    isActive: active
+                }
+            }
+        }
+
+        if(isActive !== undefined && !isActive) {
+            setDeactiveTouch()
+        }
+    }
+
+    canvas.addEventListener('touchstart', (e) => {
+        handleTouchEvent(e, true)
+    }, false);
+
+    canvas.addEventListener('touchend', (e) => {
+        handleTouchEvent(e, false)
+    }, false);
+
+    canvas.addEventListener('touchmove', (e) => {
+        handleTouchEvent(e)
+        e.preventDefault();
+    }, false);
+
+    canvas.addEventListener('mousedown', (e) => {
+        handleTouchEvent({
+            touches: [e]
+        }, true)
+    }, false);
+
+    canvas.addEventListener('mouseup', (e) => {
+        handleTouchEvent({
+            touches: []
+        }, false)
+    }, false);
+
+    canvas.addEventListener('mousemove', (e) => {
+        handleTouchEvent({
+            touches: [e]
+        })
+        e.preventDefault();
+
+    }, false);
+}
 
 Game.resetGravity = function () {
     this.cy = 0;
@@ -41,9 +146,12 @@ Game.addLights = function () {
     var ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     this.scene.add(ambientLight);
 
-    this.light = new THREE.PointLight(0xffffff, 1, 18);
+    this.light = new THREE.SpotLight(0xffffff, 1, 18);
     this.light.position.set(-3, 6, -3);
     this.light.castShadow = true;
+    this.light.shadow.bias = - 0.0001;
+    this.light.shadow.mapSize.width = 1024;
+    this.light.shadow.mapSize.height = 1024;
     this.light.shadow.camera.near = 0.1;
     this.light.shadow.camera.far = 25;
     this.scene.add(this.light);
@@ -135,7 +243,7 @@ Game.loadResources = function () {
 
     this.cylinder = new THREE.Mesh(
         new THREE.CylinderGeometry(1.5, 1.5, 150, 50),
-        new THREE.MeshPhongMaterial({wireframe: this.USE_WIREFRAME, color: 0xEDBB99})
+        new THREE.MeshLambertMaterial({wireframe: this.USE_WIREFRAME, color: 0xEDBB99})
     );
     this.cylinder.receiveShadow = true;
     this.cylinder.position.set(0, -75, 0);
@@ -163,6 +271,10 @@ Game.loadResources = function () {
                             node.castShadow = true;
                             node.receiveShadow = true;
                             node.material.color.setHex(0xFFFFFF);
+
+                            if(node.material.map) {
+                                node.material.map.anisotropy = 16;
+                            }
                         }
                     });
                     Game.ball = mesh;
@@ -237,7 +349,7 @@ Game.addPlatform = function () {
     var rotationValue = 0.786;
     var plIndex = -1;
 
-    var levelCount = 5;
+    var levelCount = 32;
     var collider = [];
     var platGroupArr = [];
     var colliderGroupArr = [];
@@ -299,8 +411,8 @@ Game.addPlatform = function () {
             platformPiece.position.set(0, 0, 0);
 
             collider = [];
-
-            collider.push(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.2), this.materials.solid));
+            const boxBufferGeometry =  new THREE.BoxBufferGeometry(1, 1, 0.2)
+            collider.push(new THREE.Mesh(boxBufferGeometry, this.materials.solid));
             collider[0].position.set(-1.83, -0.22, 1.11);
             collider[0].rotation.x += Math.PI / 2;
             collider[0].rotation.z -= 0.78;
@@ -309,7 +421,7 @@ Game.addPlatform = function () {
             collider[0].platformType = platformPieceType[type[i]].type;
 
 
-            collider.push(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.2), this.materials.solid));
+            collider.push(new THREE.Mesh(boxBufferGeometry, this.materials.solid));
             collider[1].position.set(-2.15, -0.22, 0.51);
             collider[1].rotation.x += Math.PI / 2;
             collider[1].receiveShadow = true;
@@ -350,9 +462,29 @@ Game.shuffle = function (array) {
 };
 
 
+Game.resizeRendererToDisplaySize = function(renderer) {
+    const canvas = renderer.domElement;
+    const pixelRatio =  1; // window.devicePixelRatio;
+    const width  = canvas.clientWidth  * pixelRatio | 0;
+    const height = canvas.clientHeight * pixelRatio | 0;
+    const needResize = canvas.width !== width || canvas.height !== height;
+    if (needResize) {
+      renderer.setSize(width, height, false);
+    }
+    return needResize;
+}
+
 function update() {
     requestAnimationFrame(update);
     Game.updateKeyboard();
+    Game.updateTouch();
+    if (Game.resizeRendererToDisplaySize(Game.renderer)) {
+        const canvas = Game.renderer?.domElement;
+        if(canvas && Game.camera) {
+            Game.camera.aspect = canvas.clientWidth / canvas.clientHeight;
+            Game.camera.updateProjectionMatrix();
+        }
+    }
     Game.renderer.render(Game.scene, Game.camera);
 
     if (Game.GAME_STARTED) {
@@ -479,6 +611,24 @@ Game.updateKeyboard = function () {
     }
 };
 
+Game.updateTouch = function () {
+    if(this.gameOver) {
+        return;
+    }
+
+    const touch = touches[0];
+
+    if(!touch || !touch.isActive) {
+        return;
+    }
+
+    if(touch.x < width * 0.5) {
+        this.cylinderGroup.rotation.y += this.player.rotateSpeed;
+    } else {
+        this.cylinderGroup.rotation.y -= this.player.rotateSpeed;
+    }
+}
+
 Game.player = {
     height: 2,
     speed: 0.1,
@@ -491,6 +641,7 @@ Game.RED_PIECE = 10;
 Game.GREEN_PIECE = 11;
 Game.GAME_LOADED = false;
 Game.GAME_STARTED = false;
+Game.USE_SHADOW = true;
 
 Game.materials = {
     shadow: new THREE.MeshBasicMaterial({
@@ -498,7 +649,9 @@ Game.materials = {
         transparent: true,
         opacity: 0.5
     }),
-    solid: new THREE.MeshNormalMaterial({}),
+    solid: new THREE.MeshNormalMaterial({
+        flatShading: true
+    }),
     colliding: new THREE.MeshBasicMaterial({
         color: 0xff0000,
         transparent: true,
