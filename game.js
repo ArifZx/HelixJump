@@ -21,12 +21,14 @@ Game.init = function () {
     this.camera.position.set(0, this.player.height, -6);
     this.camera.lookAt(new THREE.Vector3(0, -this.player.height, 0));
 
-    this.renderer = new THREE.WebGLRenderer({antialias: true});
+    this.renderer = new THREE.WebGLRenderer({antialias: false});
     // this.renderer.setPixelRatio(window.devicePixelRatio);
     // const isPotrait = window.innerHeight > window.innerWidth;   
     this.renderer.setSize(width, height);
-    this.renderer.shadowMap.enabled = this.USE_SHADOW;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    if(Game.USE_SHADOW) {
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    }
     this.renderer.domElement.id = 'game';
     document.body.appendChild(this.renderer.domElement);
 
@@ -45,56 +47,52 @@ Game.initTouchControl = function () {
 
     const rect = canvas.getBoundingClientRect();
 
-    function transformPoint(obj) {
-        const x = obj.clientX - rect.left; 
-        const y = obj.clientY - rect.top;
-        const isOver = (x >= 0 && x <= rect.width) &&
-                        (y >= 0 && y <= rect.height);
-
-        return {
-            ...obj,
-            x, 
-            y,
-            isOver
-        }
-    }
-
-    function setDeactiveTouch() {
-        let i = touches.length;
-        while(i--) {
-            if(touches[i]) {
-                touches[i].isActive = false;
-            }
-        }
-    }
-
     function handleTouchEvent(e, isActive) {
         let i = e?.touches?.length || 0;
+        const ids = [];
 
         while(i--) {
-            const touch = e.touches[i];
-            touches[i] = {
-                ...touches[i],
-                clientX: touch.clientX,
-                clientY: touch.clientY,
+            const {clientX, clientY, identifier} = e.touches[i];
+            const id = identifier || 0;
+            ids.push(id);
+
+            const x = clientX - rect.left; 
+            const y = clientY - rect.top;
+            const isOver = (x >= 0 && x <= rect.width) &&
+                            (y >= 0 && y <= rect.height);
+            const state = isActive === undefined ? 'move' : isActive ? 'start' : 'end'
+
+            if(!touches[id]) {
+                touches[id] = {
+                    clientX,
+                    clientY,
+                    isActive,
+                    x,
+                    y,
+                    isOver,
+                    state
+                }
+            } else {
+                touches[id].clientX = clientX;
+                touches[id].clientY = clientY;
+                touches[id].x = x;
+                touches[id].y = y;
+                touches[id].isOver = isOver;
+                touches[id].state = state;
             }
 
-            touches[i] = transformPoint(touches[i]);
-
-            const active = isActive !== undefined ? isActive : touches[i].isActive || false
-
-            if(touches[i].isActive !== undefined) {
-                touches[i].isActive = active;
-            } else {
-                touches[i] = {
-                    ...touches[i],
-                    isActive: active
-                }
+            if(isActive) {
+                touches[id].isActive = true;
             }
         }
 
         if(isActive !== undefined && !isActive) {
-            setDeactiveTouch()
+            i = touches.length;
+            while(i--) {
+                if(!ids.includes(i) && touches[i]) {
+                    touches[i].isActive = false;
+                }
+            }
         }
     }
 
@@ -146,14 +144,16 @@ Game.addLights = function () {
     var ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     this.scene.add(ambientLight);
 
-    this.light = new THREE.SpotLight(0xffffff, 1, 18);
+    this.light = new THREE.PointLight(0xffffff, 1, 18);
     this.light.position.set(-3, 6, -3);
-    this.light.castShadow = true;
-    this.light.shadow.bias = - 0.0001;
-    this.light.shadow.mapSize.width = 1024;
-    this.light.shadow.mapSize.height = 1024;
-    this.light.shadow.camera.near = 0.1;
-    this.light.shadow.camera.far = 25;
+    if(Game.USE_SHADOW) {
+        this.light.castShadow = true;
+        this.light.shadow.bias = - 0.0001;
+        this.light.shadow.mapSize.width = 1024;
+        this.light.shadow.mapSize.height = 1024;
+        this.light.shadow.camera.near = 0.1;
+        this.light.shadow.camera.far = 25;
+    }
     this.scene.add(this.light);
 };
 
@@ -237,7 +237,7 @@ Game.loadResources = function () {
     );
 
     bgMesh.rotation.x += Math.PI;
-    bgMesh.receiveShadow = true;
+    bgMesh.receiveShadow = Game.USE_SHADOW;
     bgMesh.position.set(0, -1, 4);
     this.scene.add(bgMesh);
 
@@ -245,7 +245,7 @@ Game.loadResources = function () {
         new THREE.CylinderGeometry(1.5, 1.5, 150, 50),
         new THREE.MeshLambertMaterial({wireframe: this.USE_WIREFRAME, color: 0xEDBB99})
     );
-    this.cylinder.receiveShadow = true;
+    this.cylinder.receiveShadow = Game.USE_SHADOW;
     this.cylinder.position.set(0, -75, 0);
 
     this.cylinderGroup = new THREE.Group();
@@ -268,8 +268,8 @@ Game.loadResources = function () {
                     mesh.scale.set(0.2, 0.2, 0.2);
                     mesh.traverse(function (node) {
                         if (node instanceof THREE.Mesh) {
-                            node.castShadow = true;
-                            node.receiveShadow = true;
+                            node.castShadow = Game.USE_SHADOW;
+                            node.receiveShadow = Game.USE_SHADOW;
                             node.material.color.setHex(0xFFFFFF);
 
                             if(node.material.map) {
@@ -291,8 +291,8 @@ Game.loadResources = function () {
     objLoader.load(pie.obj, function (mesh) {
         mesh.traverse(function (node) {
             if (node instanceof THREE.Mesh) {
-                node.castShadow = true;
-                node.receiveShadow = true;
+                node.castShadow = Game.USE_SHADOW;
+                node.receiveShadow = Game.USE_SHADOW;
                 node.material.map = pieTexture;
                 node.material.color.setHex(0x922B21);
             }
@@ -306,8 +306,8 @@ Game.loadResources = function () {
     objLoader2.load(pie.obj, function (mesh) {
         mesh.traverse(function (node) {
             if (node instanceof THREE.Mesh) {
-                node.castShadow = true;
-                node.receiveShadow = true;
+                node.castShadow = Game.USE_SHADOW;
+                node.receiveShadow = Game.USE_SHADOW;
                 node.material.map = pieTexture2;
                 node.material.color.setHex(0x5499C7);
             }
@@ -416,7 +416,7 @@ Game.addPlatform = function () {
             collider[0].position.set(-1.83, -0.22, 1.11);
             collider[0].rotation.x += Math.PI / 2;
             collider[0].rotation.z -= 0.78;
-            collider[0].receiveShadow = true;
+            collider[0].receiveShadow = Game.USE_SHADOW;
             collider[0].visible = this.MESH_VISIBILTY;
             collider[0].platformType = platformPieceType[type[i]].type;
 
@@ -424,7 +424,7 @@ Game.addPlatform = function () {
             collider.push(new THREE.Mesh(boxBufferGeometry, this.materials.solid));
             collider[1].position.set(-2.15, -0.22, 0.51);
             collider[1].rotation.x += Math.PI / 2;
-            collider[1].receiveShadow = true;
+            collider[1].receiveShadow = Game.USE_SHADOW;
             collider[1].visible = this.MESH_VISIBILTY;
             collider[1].platformType = platformPieceType[type[i]].type;
 
@@ -474,10 +474,14 @@ Game.resizeRendererToDisplaySize = function(renderer) {
     return needResize;
 }
 
-function update() {
+let then = 0;
+function update(time) {
+    const delta = Math.floor(time - then) * 1e-3;
+    then = time;
+
     requestAnimationFrame(update);
     Game.updateKeyboard();
-    Game.updateTouch();
+    Game.updateTouch(delta);
     if (Game.resizeRendererToDisplaySize(Game.renderer)) {
         const canvas = Game.renderer?.domElement;
         if(canvas && Game.camera) {
@@ -611,7 +615,9 @@ Game.updateKeyboard = function () {
     }
 };
 
-Game.updateTouch = function () {
+let startRotY = 0;
+let startTouchX = 0;
+Game.updateTouch = function (delta) {
     if(this.gameOver) {
         return;
     }
@@ -622,11 +628,12 @@ Game.updateTouch = function () {
         return;
     }
 
-    if(touch.x < width * 0.5) {
-        this.cylinderGroup.rotation.y += this.player.rotateSpeed;
-    } else {
-        this.cylinderGroup.rotation.y -= this.player.rotateSpeed;
-    }
+    if(touch.state === 'start') {
+        startTouchX = touch.x;
+        startRotY = this.cylinderGroup.rotation.y;
+    }    
+
+    this.cylinderGroup.rotation.y = startRotY + (touch.x - startTouchX) * (delta * 1e3).toPrecision(1) * 1e-3;
 }
 
 Game.player = {
@@ -641,7 +648,7 @@ Game.RED_PIECE = 10;
 Game.GREEN_PIECE = 11;
 Game.GAME_LOADED = false;
 Game.GAME_STARTED = false;
-Game.USE_SHADOW = true;
+Game.USE_SHADOW = false;
 
 Game.materials = {
     shadow: new THREE.MeshBasicMaterial({
