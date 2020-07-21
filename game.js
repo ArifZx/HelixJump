@@ -35,7 +35,7 @@ Game.init = function () {
     this.addLoader();
     this.initTouchControl();
     this.loadResources();
-    update();
+    requestAnimationFrame(update);
 };
 
 const touches = new Array(5);
