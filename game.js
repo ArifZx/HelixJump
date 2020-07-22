@@ -712,7 +712,7 @@ Game.updateTouch = function (delta) {
         startRotY = this.cylinderGroup.rotation.y;
     }    
 
-    this.cylinderGroup.rotation.y = startRotY + (touch.x - startTouchX) * (delta * 1e3).toPrecision(1) * 1e-3;
+    this.cylinderGroup.rotation.y = startRotY + (touch.x - startTouchX) * 0.016;
 }
 
 Game.player = {
