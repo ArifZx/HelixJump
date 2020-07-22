@@ -13,8 +13,6 @@ Game.init = function () {
 
     this.scoreBoard = document.getElementById("scoreBoard");
 
-    this.infoBoard = document.querySelector("#info");
-
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(90, width / height, 0.1, 1000);
 
@@ -43,6 +41,10 @@ Game.init = function () {
     this.initTouchControl();
     this.loadResources();
     requestAnimationFrame(update);
+
+    if(statsObj) {
+        statsObj.dom.id = "stats";
+    }
 };
 
 const touches = new Array(5);
@@ -505,11 +507,7 @@ Game.resizeRendererToDisplaySize = function(renderer) {
 
 let then = 0, delta = 0;
 function update(time) {
-    const newDelta = Math.floor(time - then) * 1e-3;
-    if(delta && delta !== newDelta ) {
-        Game.infoBoard.innerHTML = `FPS: ${(1/delta).toFixed(0) }`
-    }
-    delta = newDelta;
+    delta = Math.floor(time - then) * 1e-3;
     then = time;
 
     requestAnimationFrame(update);

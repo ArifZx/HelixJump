@@ -8,6 +8,7 @@
     <script type="text/javascript" src="MTLLoader.js"></script>
     <script type="text/javascript" src="OBJLoader.js"></script>
     <script type="text/javascript" src="tween.js"></script>
+    <script type="text/javascript" src="initStats.js"></script>
 </head>
 <style>
 #loader {
@@ -42,16 +43,18 @@
     left: 50%;
 }
 
-#info {
-    position: fixed;
-    user-select: none;
-    z-index: 1;
-    font-size: 200%;
+#stats {
+    width: 10%;
+    height: 10%;
+}
+
+body {
+    margin: 0px;
+    overflow: hidden;
 }
 </style>
 
 <body style="text-align:center;">
-    <p id="info">FPS: 0</p>
     <p id="scoreBoard">Score 0</p>
     <script type="text/javascript" src="game.js"></script>
 </body>
