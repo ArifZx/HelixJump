@@ -16,6 +16,11 @@ Game.init = function () {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(90, width / height, 0.1, 1000);
 
+    this.raycaster = new THREE.Raycaster();
+
+    this.raycaster.near = 0.1;
+    this.raycaster.far = 2;
+
     this.addLights();
 
     this.camera.position.set(0, this.player.height, -6);
@@ -252,6 +257,9 @@ Game.loadResources = function () {
     this.cylinderGroup.add(this.cylinder);
     this.scene.add(this.cylinderGroup);
 
+    this.splashGroup = new THREE.Group();
+    this.cylinderGroup.add(this.splashGroup);
+
     // LOADING MODELS
     for (var _key in models) {
         (function (key) {
@@ -314,6 +322,25 @@ Game.loadResources = function () {
         });
         Game.yellowPlatform = mesh.clone();
     });
+
+    var textureLoader3 = new THREE.TextureLoader(this.loadingManager);
+    var decalDiffuse = textureLoader3.load("res/decal-diffuse.png");
+    var decalNormal = textureLoader3.load("res/decal-normal.jpg");
+
+    this.decalMaterial = new THREE.MeshPhongMaterial({
+        specular: 0x444444,
+        map: decalDiffuse,
+        normalMap: decalNormal,
+        normalScale: new THREE.Vector2( 1, 1 ),
+        shininess: 30,
+        transparent: true,
+        depthTest: true,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: - 4,
+        wireframe: false
+    });
+    
 };
 
 Game.onResourcesLoaded = function () {
@@ -494,8 +521,12 @@ function update(time) {
     if (Game.GAME_STARTED) {
         if (!Game.gameOver) {
             if (Game.collision) { // ball is on surface
+
                 Game.vy = -Game.vy;
-                Game.collision = false;
+
+                Game.addSplash();
+                
+                Game.collision = null;
             }
             Game.cy -= Game.vy * Game.dt;
             Game.ball.position.y = Game.cy;
@@ -547,12 +578,60 @@ Game.findCollision = function () {
                     this.changeBallColor();
                     this.restart();
                 }
+
                 return true;
             }
         }
     }
-    return false;
+    return null;
 };
+
+var splashPosition = new THREE.Vector3();
+var splashRotation = new THREE.Euler(1,0,0);
+var splashSize = new THREE.Vector3(1.0, 1.0, 1.0);
+var addSplash = new THREE.Vector3(0.0, -1.0, 0.0);
+var splashCastDirection = new THREE.Vector3(0,-1,0);
+var params = {
+    minScale: 0.5,
+    maxScale: 1.25
+}
+
+Game.addSplash = function () {
+
+    if(!Game.collision) {
+        return;
+    }
+
+    Game.raycaster.set(Game.ball.position, splashCastDirection);
+    var intersects = Game.raycaster.intersectObject(Game.cylinderGroup, true)?.filter(v => v.object?.name === "Cheese");
+
+
+    if(!intersects.length) {
+        return;
+    }
+
+    var scale = params.minScale + Math.random() * ( params.maxScale - params.minScale );
+    splashSize.set( scale, scale, scale );
+    
+    splashPosition.copy(Game.ball.position);
+    
+    var material = Game.decalMaterial.clone();
+    material.color.setHex( Math.random() * 0xffffff );
+
+    var decalMesh = intersects[0].object;
+    var splashGeom = new THREE.DecalGeometry(decalMesh, splashPosition, splashRotation, splashSize);
+
+    var m = new THREE.Mesh(splashGeom, material);
+    Game.scene.add(m);
+    decalMesh.attach(m);
+
+    setTimeout(() => {
+        if(m) {
+            decalMesh.remove(m);
+        }
+    }, 1200 * scale);
+    
+}
 
 Game.restart = function () {
     var count = 2;
@@ -656,9 +735,7 @@ Game.materials = {
         transparent: true,
         opacity: 0.5
     }),
-    solid: new THREE.MeshNormalMaterial({
-        flatShading: true
-    }),
+    solid: new THREE.MeshNormalMaterial(),
     colliding: new THREE.MeshBasicMaterial({
         color: 0xff0000,
         transparent: true,
