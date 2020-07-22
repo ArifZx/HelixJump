@@ -33,6 +33,7 @@
     font-weight: bold;
     z-index: 1;
     user-select: none;
+    font-size: 200%;
 }
 
 #game {
@@ -40,9 +41,17 @@
     transform: translateX(-50%);
     left: 50%;
 }
+
+#info {
+    position: fixed;
+    user-select: none;
+    z-index: 1;
+    font-size: 200%;
+}
 </style>
 
 <body style="text-align:center;">
+    <p id="info">FPS: 0</p>
     <p id="scoreBoard">Score 0</p>
     <script type="text/javascript" src="game.js"></script>
 </body>

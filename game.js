@@ -13,6 +13,8 @@ Game.init = function () {
 
     this.scoreBoard = document.getElementById("scoreBoard");
 
+    this.infoBoard = document.querySelector("#info");
+
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(90, width / height, 0.1, 1000);
 
@@ -501,9 +503,13 @@ Game.resizeRendererToDisplaySize = function(renderer) {
     return needResize;
 }
 
-let then = 0;
+let then = 0, delta = 0;
 function update(time) {
-    const delta = Math.floor(time - then) * 1e-3;
+    const newDelta = Math.floor(time - then) * 1e-3;
+    if(delta && delta !== newDelta ) {
+        Game.infoBoard.innerHTML = `FPS: ${(1/delta).toFixed(0) }`
+    }
+    delta = newDelta;
     then = time;
 
     requestAnimationFrame(update);
