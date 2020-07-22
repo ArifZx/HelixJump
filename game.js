@@ -26,7 +26,7 @@ Game.init = function () {
     this.camera.position.set(0, this.player.height, -6);
     this.camera.lookAt(new THREE.Vector3(0, -this.player.height, 0));
 
-    this.renderer = new THREE.WebGLRenderer({antialias: false});
+    this.renderer = new THREE.WebGLRenderer({antialias: true});
     // this.renderer.setPixelRatio(window.devicePixelRatio);
     // const isPotrait = window.innerHeight > window.innerWidth;   
     this.renderer.setSize(width, height);
