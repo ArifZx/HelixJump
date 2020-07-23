@@ -714,9 +714,16 @@ Game.updateTouch = function (delta) {
     if(touch.state === 'start') {
         startTouchX = touch.x;
         startRotY = this.cylinderGroup.rotation.y;
-    }    
+    }
 
-    this.cylinderGroup.rotation.y = startRotY + (touch.x - startTouchX) * 0.016;
+    const newRot = startRotY + (touch.x - startTouchX) * 0.016;
+
+    if(this.cylinderGroup.rotation.y !== newRot) {
+        this.cylinderGroup.rotation.y = startRotY + (touch.x - startTouchX) * 0.016;
+    } else {
+        console.log('not change');
+    }
+
 }
 
 Game.player = {
