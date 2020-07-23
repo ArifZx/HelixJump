@@ -10,6 +10,6 @@ javascript:(function(){
       stats.update();requestAnimationFrame(loop)
     });
   };
-  script.src='//mrdoob.github.io/stats.js/build/stats.min.js';
+  script.src='lib/stats.min.js';
   document.head.appendChild(script);
 })()
